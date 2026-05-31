@@ -1,187 +1,69 @@
-import { useRef, useEffect } from 'react';
-import * as THREE from 'three';
+import React, { useState, useEffect } from 'react';
 
-export default function ParticleBackground() {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const mouseRef = useRef({ x: 0, y: 0 });
+const bootSequence = [
+  "SYSTEM CORE v2.4.0-RELEASE INITIATED...",
+  "[OK] Kernel modules compiled successfully.",
+  "[INFO] Initializing Stateless MDM Architecture...",
+  "[OK] Shared state store connected via Redis Cluster.",
+  "[START] Launching gRPC bidirectional streams on port :50051",
+  "[SUCCESS] gRPC connection established with client pool.",
+  "[INFO] Migrating Presence System from Socket.IO to gRPC/FCM...",
+  "[OK] Migration completed. Latency dropped to ~12ms.",
+  "[START] Server-Sent Events (SSE) broadcasting active.",
+  "[OK] Real-time bot status synchronization: ONLINE.",
+  "--------------------------------------------------",
+  "STATUS: READY // EXECUTING PORTFOLIO_OS..."
+];
+
+const AnimatedTerminal: React.FC = () => {
+  const [lines, setLines] = useState<string[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    // Scene setup
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(
-      75,
-      container.offsetWidth / container.offsetHeight,
-      0.1,
-      1000
-    );
-    camera.position.z = 50;
-
-    const renderer = new THREE.WebGLRenderer({
-      alpha: true,
-      antialias: true,
-    });
-    renderer.setSize(container.offsetWidth, container.offsetHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    container.appendChild(renderer.domElement);
-
-    // Gold particles
-    const particleCount = 300;
-    const positions = new Float32Array(particleCount * 3);
-    const velocities: { x: number; y: number; z: number }[] = [];
-
-    for (let i = 0; i < particleCount; i++) {
-      positions[i * 3] = (Math.random() - 0.5) * 120;
-      positions[i * 3 + 1] = (Math.random() - 0.5) * 80;
-      positions[i * 3 + 2] = (Math.random() - 0.5) * 60;
-      velocities.push({
-        x: (Math.random() - 0.5) * 0.02,
-        y: (Math.random() - 0.5) * 0.02,
-        z: (Math.random() - 0.5) * 0.01,
-      });
+    if (currentIndex < bootSequence.length) {
+      const delay = currentIndex === 0 ? 400 : Math.random() * 300 + 150;
+      const timeout = setTimeout(() => {
+        setLines(prev => [...prev, bootSequence[currentIndex]]);
+        setCurrentIndex(prev => prev + 1);
+      }, delay);
+      return () => clearTimeout(timeout);
     }
-
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-
-    const material = new THREE.PointsMaterial({
-      color: 0xC8A45C,
-      size: 0.4,
-      transparent: true,
-      opacity: 0.7,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
-
-    const particles = new THREE.Points(geometry, material);
-    scene.add(particles);
-
-    // Ambient glow spheres (subtle)
-    const glowGeometry = new THREE.SphereGeometry(0.5, 8, 8);
-    const glowMaterial = new THREE.MeshBasicMaterial({
-      color: 0xC8A45C,
-      transparent: true,
-      opacity: 0.15,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
-
-    for (let i = 0; i < 8; i++) {
-      const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-      glow.position.set(
-        (Math.random() - 0.5) * 80,
-        (Math.random() - 0.5) * 50,
-        (Math.random() - 0.5) * 40 - 20
-      );
-      glow.scale.setScalar(3 + Math.random() * 5);
-      scene.add(glow);
-    }
-
-    // Lines connecting nearby particles
-    const lineMaterial = new THREE.LineBasicMaterial({
-      color: 0xC8A45C,
-      transparent: true,
-      opacity: 0.06,
-    });
-    const lineGeometry = new THREE.BufferGeometry();
-    const lines = new THREE.LineSegments(lineGeometry, lineMaterial);
-    scene.add(lines);
-
-    let animationId: number;
-
-    function animate() {
-      animationId = requestAnimationFrame(animate);
-      const posArray = geometry.attributes.position.array as Float32Array;
-
-      for (let i = 0; i < particleCount; i++) {
-        posArray[i * 3] += velocities[i].x;
-        posArray[i * 3 + 1] += velocities[i].y;
-        posArray[i * 3 + 2] += velocities[i].z;
-
-        // Wrap around
-        if (Math.abs(posArray[i * 3]) > 60) velocities[i].x *= -1;
-        if (Math.abs(posArray[i * 3 + 1]) > 40) velocities[i].y *= -1;
-        if (Math.abs(posArray[i * 3 + 2]) > 30) velocities[i].z *= -1;
-      }
-
-      geometry.attributes.position.needsUpdate = true;
-
-      // Update lines between close particles
-      const linePositions: number[] = [];
-      for (let i = 0; i < particleCount; i++) {
-        for (let j = i + 1; j < particleCount; j++) {
-          const dx = posArray[i * 3] - posArray[j * 3];
-          const dy = posArray[i * 3 + 1] - posArray[j * 3 + 1];
-          const dz = posArray[i * 3 + 2] - posArray[j * 3 + 2];
-          const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-
-          if (dist < 12) {
-            linePositions.push(
-              posArray[i * 3], posArray[i * 3 + 1], posArray[i * 3 + 2],
-              posArray[j * 3], posArray[j * 3 + 1], posArray[j * 3 + 2]
-            );
-          }
-        }
-      }
-
-      lineGeometry.setAttribute(
-        'position',
-        new THREE.Float32BufferAttribute(linePositions, 3)
-      );
-
-      // Mouse parallax
-      const targetX = mouseRef.current.x * 0.01;
-      const targetY = mouseRef.current.y * 0.01;
-      particles.rotation.y += (targetX - particles.rotation.y) * 0.02;
-      particles.rotation.x += (-targetY - particles.rotation.x) * 0.02;
-
-      renderer.render(scene, camera);
-    }
-
-    animate();
-
-    function handleResize() {
-      if (!container) return;
-      camera.aspect = container.offsetWidth / container.offsetHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(container.offsetWidth, container.offsetHeight);
-    }
-
-    function handleMouseMove(e: MouseEvent) {
-      mouseRef.current.x = (e.clientX / window.innerWidth) * 2 - 1;
-      mouseRef.current.y = (e.clientY / window.innerHeight) * 2 - 1;
-    }
-
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('mousemove', handleMouseMove);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('mousemove', handleMouseMove);
-      cancelAnimationFrame(animationId);
-      renderer.dispose();
-      geometry.dispose();
-      material.dispose();
-      if (container.contains(renderer.domElement)) {
-        container.removeChild(renderer.domElement);
-      }
-    };
-  }, []);
+  }, [currentIndex]);
 
   return (
-    <div
-      ref={containerRef}
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        zIndex: 0,
-        pointerEvents: 'none',
-      }}
-    />
+    <div className="w-full max-w-2xl rounded-xl bg-black/80 border border-slate-800 p-5 font-mono text-xs sm:text-sm shadow-[0_0_50px_rgba(0,0,0,0.8)] backdrop-blur-xl">
+      {/* شريط التحكم العلوي للنظام */}
+      <div className="flex items-center justify-between border-b border-slate-800/60 pb-3 mb-4">
+        <div className="flex gap-2">
+          <div className="w-3 h-3 rounded-full bg-rose-500/80 shadow-[0_0_10px_rgba(244,63,94,0.4)]"></div>
+          <div className="w-3 h-3 rounded-full bg-amber-500/80 shadow-[0_0_10px_rgba(245,158,11,0.4)]"></div>
+          <div className="w-3 h-3 rounded-full bg-emerald-500/80 shadow-[0_0_10px_rgba(16,185,129,0.4)]"></div>
+        </div>
+        <span className="text-slate-500 text-xs tracking-widest uppercase">system_monitor.sh</span>
+      </div>
+      
+      {/* أسطر الـ Terminal */}
+      <div className="space-y-1.5 min-h-[260px] overflow-y-auto selection:bg-sky-500 selection:text-black">
+        {lines.map((line, i) => {
+          let colorClass = "text-slate-300";
+          if (line.includes("[OK]") || line.includes("[SUCCESS]")) colorClass = "text-emerald-400 font-semibold";
+          if (line.includes("[INFO]")) colorClass = "text-sky-400";
+          if (line.includes("[START]")) colorClass = "text-violet-400";
+          if (line.includes("STATUS:")) colorClass = "text-amber-400 font-bold tracking-wider";
+          
+          return (
+            <div key={i} className="flex items-start gap-2">
+              <span className="text-slate-600 select-none">$&gt;</span>
+              <span className={colorClass}>{line}</span>
+            </div>
+          );
+        })}
+        {currentIndex < bootSequence.length && (
+          <div className="inline-block w-2 h-4 bg-sky-400 animate-pulse ml-1 align-middle"></div>
+        )}
+      </div>
+    </div>
   );
-}
+};
+
+export default AnimatedTerminal;
